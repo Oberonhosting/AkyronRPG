@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../audio/audio_director.dart';
+import '../../audio/track_catalog.dart';
 import '../../core/theme.dart';
 import '../../data/catalogs/ability_catalog.dart';
 import '../../models/character.dart';
@@ -38,6 +40,15 @@ class _CombatScreenState extends State<CombatScreen> {
   String? _currentCry;
   bool _currentCryUltimate = false;
   bool _busy = false;
+  bool _awakeningFiredPlayer = false;
+  bool _awakeningFiredEnemy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Inimigo "Sombra de Treino" é um boss de tutorial — usa tema de boss.
+    AudioDirector.instance.setMood(MusicMood.combatBoss);
+  }
 
   Combatant _generateEnemy() {
     // Boss de treino simples: contraparte com elemento oposto.
@@ -233,7 +244,18 @@ class _CombatScreenState extends State<CombatScreen> {
       _currentCry = a.battleCry.isEmpty ? a.name : a.battleCry;
       _currentCryUltimate = a.isUltimate;
     });
+    // Stinger e SFX por tipo de habilidade.
+    if (a.isUltimate) {
+      AudioDirector.instance.playStinger(_ultimateStingerFor(a));
+      AudioDirector.instance.sfx(Sfx.spellCastHigh);
+    } else if (a.basePower >= 60) {
+      AudioDirector.instance.sfx(Sfx.spellCastMid);
+    } else {
+      AudioDirector.instance.sfx(_sfxForAbility(a));
+    }
+
     await _engine.playerAction(actor: _player, ability: a, target: _enemy);
+    _maybePlayAwakeningSting();
     await Future.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
     setState(() => _currentCry = null);
@@ -244,14 +266,49 @@ class _CombatScreenState extends State<CombatScreen> {
     }
 
     await _engine.enemyTurn();
+    _maybePlayAwakeningSting();
     if (!mounted) return;
     setState(() => _busy = false);
 
     if (_engine.finished) _finish();
   }
 
+  /// Escolhe o stinger de ultimate baseado no sistema do conjurador.
+  MusicMood _ultimateStingerFor(Ability a) {
+    if (a.system == PowerSystem.zanpakuto) return MusicMood.cutsceneBankai;
+    if (a.system == PowerSystem.cursed) return MusicMood.cutsceneDomain;
+    return MusicMood.ultimate;
+  }
+
+  Sfx _sfxForAbility(Ability a) {
+    return switch (a.system) {
+      PowerSystem.zanpakuto => Sfx.swordSlash,
+      PowerSystem.breathing => Sfx.swordSlash,
+      PowerSystem.cursed => Sfx.punchHit,
+      _ => Sfx.spellCastLow,
+    };
+  }
+
+  void _maybePlayAwakeningSting() {
+    if (!_awakeningFiredPlayer && _player.awakened) {
+      _awakeningFiredPlayer = true;
+      AudioDirector.instance.playStinger(MusicMood.awakening);
+      AudioDirector.instance.sfx(Sfx.awakeningFlash);
+    }
+    if (!_awakeningFiredEnemy && _enemy.awakened) {
+      _awakeningFiredEnemy = true;
+      AudioDirector.instance.sfx(Sfx.cursedHum);
+    }
+  }
+
   void _finish() {
     final r = _engine.buildResult();
+    AudioDirector.instance.playStinger(
+      r.victory ? MusicMood.victory : MusicMood.defeat,
+    );
+    if (r.victory) {
+      AudioDirector.instance.sfx(Sfx.enemyDie);
+    }
     Future.microtask(() {
       if (!mounted) return;
       showDialog<void>(

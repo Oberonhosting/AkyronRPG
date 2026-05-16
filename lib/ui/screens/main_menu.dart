@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../audio/audio_director.dart';
+import '../../audio/track_catalog.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../data/save_repository.dart';
@@ -22,6 +24,7 @@ class _MainMenuState extends State<MainMenu> {
   @override
   void initState() {
     super.initState();
+    AudioDirector.instance.setMood(MusicMood.mainMenu);
     _load();
   }
 
@@ -103,6 +106,10 @@ class _MainMenuState extends State<MainMenu> {
                   label: 'Códex do Mundo',
                   onTap: () => Navigator.of(context).pushNamed('/lore'),
                 ),
+                _MenuButton(
+                  label: 'Áudio',
+                  onTap: () => Navigator.of(context).pushNamed('/audio'),
+                ),
                 const SizedBox(height: 24),
                 Text('v${AkyronK.version}',
                     style: const TextStyle(color: Colors.white38)),
@@ -141,7 +148,12 @@ class _MenuButton extends StatelessWidget {
         width: double.infinity,
         height: 52,
         child: FilledButton(
-          onPressed: enabled ? onTap : null,
+          onPressed: enabled
+              ? () {
+                  AudioDirector.instance.sfx(Sfx.uiClick);
+                  onTap();
+                }
+              : null,
           style: FilledButton.styleFrom(
             backgroundColor: enabled
                 ? AkyronTheme.violetArcane

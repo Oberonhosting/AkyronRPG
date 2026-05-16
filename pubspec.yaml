@@ -60,6 +60,9 @@ flutter:
     - assets/images/tiles/
     - assets/images/ui/
     - assets/audio/
+    - assets/audio/music/
+    - assets/audio/sfx/
+    - assets/audio/ambient/
     - assets/data/
 
   fonts:

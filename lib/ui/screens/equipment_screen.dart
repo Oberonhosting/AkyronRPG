@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../audio/audio_director.dart';
+import '../../audio/track_catalog.dart';
 import '../../core/theme.dart';
 import '../../data/catalogs/clothing_catalog.dart';
 import '../../models/character.dart';
@@ -88,6 +90,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         trailing: IconButton(
           icon: const Icon(Icons.remove_circle_outline),
           onPressed: () {
+            AudioDirector.instance.sfx(Sfx.unequip);
             WardrobeService.unequip(widget.character, item.slot);
             setState(() {});
           },
@@ -105,6 +108,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
           maxLines: 2, overflow: TextOverflow.ellipsis),
       trailing: FilledButton(
         onPressed: isEquipped ? null : () {
+          AudioDirector.instance.sfx(Sfx.equip);
           WardrobeService.equip(widget.character, item.id);
           setState(() {});
         },

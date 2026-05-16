@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/constants.dart';
 import 'core/theme.dart';
+import 'ui/screens/audio_settings_screen.dart';
 import 'ui/screens/codex_screen.dart';
 import 'ui/screens/splash_screen.dart';
 
@@ -18,6 +19,7 @@ class AkyronApp extends ConsumerWidget {
       home: const SplashScreen(),
       routes: {
         '/lore': (_) => const CodexScreen(),
+        '/audio': (_) => const AudioSettingsScreen(),
       },
     );
   }

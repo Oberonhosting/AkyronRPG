@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../audio/audio_director.dart';
+import '../../audio/track_catalog.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import 'main_menu.dart';
@@ -16,8 +18,10 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+    AudioDirector.instance.setMood(MusicMood.splash);
     Future.delayed(const Duration(milliseconds: 2400), () {
       if (!mounted) return;
+      AudioDirector.instance.setMood(MusicMood.mainMenu);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const MainMenu()),
       );

@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
+import '../../audio/audio_director.dart';
+import '../../audio/track_catalog.dart';
 import '../../core/theme.dart';
 import '../../game/akyron_game.dart';
 import '../../game/world/region.dart';
@@ -32,6 +35,7 @@ class _GameScreenState extends State<GameScreen> {
   late final AkyronGame _game = AkyronGame(character: widget.character);
   bool _showChapter = true;
   LevelUpResult? _pendingLevelUp;
+  Timer? _moodTicker;
 
   bool get _isMobile {
     try {
@@ -39,6 +43,34 @@ class _GameScreenState extends State<GameScreen> {
     } catch (_) {
       return false;
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Stinger de capítulo, depois a trilha da região (após o stinger sair).
+    AudioDirector.instance.playStinger(MusicMood.chapterIntro);
+    Future.delayed(const Duration(milliseconds: 2900), _applyExploreMood);
+    // Reavalia mood (HP, clima) a cada 4 s.
+    _moodTicker = Timer.periodic(
+      const Duration(seconds: 4),
+      (_) => _applyExploreMood(),
+    );
+  }
+
+  void _applyExploreMood() {
+    if (!mounted) return;
+    final region = WorldRegions.byId(widget.character.region);
+    final base = AudioDirector.instance.pickExploreMood(widget.character);
+    final mood =
+        AudioDirector.instance.applyWeatherOverride(base, _game.weather, region);
+    AudioDirector.instance.setMood(mood);
+  }
+
+  @override
+  void dispose() {
+    _moodTicker?.cancel();
+    super.dispose();
   }
 
   @override
@@ -131,12 +163,18 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Future<void> _startTrainingBattle() async {
+    AudioDirector.instance.sfx(Sfx.uiClick);
     final result = await Navigator.of(context).push<int>(
       MaterialPageRoute(builder: (_) => CombatScreen(player: widget.character)),
     );
+    // Ao voltar do combate, restaura mood da região.
+    _applyExploreMood();
     if (result != null && result > 0) {
       final lvl = LevelingSystem.grantXp(widget.character, result);
-      if (lvl.leveledUp) setState(() => _pendingLevelUp = lvl);
+      if (lvl.leveledUp) {
+        AudioDirector.instance.sfx(Sfx.levelUp);
+        setState(() => _pendingLevelUp = lvl);
+      }
       setState(() {});
     }
   }

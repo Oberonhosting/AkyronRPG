@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'akyron_app.dart';
+import 'audio/audio_director.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +23,9 @@ Future<void> main() async {
   } catch (_) {
     // Em web/desktop Platform pode lançar — ignoramos.
   }
+
+  // Inicializa o áudio. Falha silenciosamente se assets ausentes.
+  await AudioDirector.instance.init();
 
   runApp(const ProviderScope(child: AkyronApp()));
 }
