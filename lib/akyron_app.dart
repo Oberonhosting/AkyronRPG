@@ -6,6 +6,7 @@ import 'core/theme.dart';
 import 'ui/screens/audio_settings_screen.dart';
 import 'ui/screens/codex_screen.dart';
 import 'ui/screens/splash_screen.dart';
+import 'ui/widgets/rotate_device_overlay.dart';
 
 class AkyronApp extends ConsumerWidget {
   const AkyronApp({super.key});
@@ -16,6 +17,9 @@ class AkyronApp extends ConsumerWidget {
       title: AkyronK.appName,
       debugShowCheckedModeBanner: false,
       theme: AkyronTheme.buildDark(),
+      // RotateDeviceGate pede ao jogador para girar o aparelho em mobile;
+      // em desktop/web ele é transparente.
+      builder: (context, child) => RotateDeviceGate(child: child ?? const SizedBox.shrink()),
       home: const SplashScreen(),
       routes: {
         '/lore': (_) => const CodexScreen(),

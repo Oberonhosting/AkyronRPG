@@ -20,9 +20,11 @@ macOS e Web** a partir do mesmo código.
 3. [Estrutura do projeto](#-estrutura-do-projeto)
 4. [Instalando o ambiente](#-instalando-o-ambiente)
 5. [Como rodar (por plataforma)](#-como-rodar-por-plataforma)
-6. [Como jogar](#-como-jogar)
-7. [Controles](#-controles)
-8. [Áudio — adicionar trilhas](#-áudio--adicionar-trilhas)
+6. [Login, contas e moeda](#-login-contas-e-moeda)
+7. [Economia — lojas, casas, hotéis, marketplace](#-economia)
+8. [Como jogar](#-como-jogar)
+9. [Controles](#-controles)
+10. [Áudio — adicionar trilhas](#-áudio--adicionar-trilhas)
 9. [Online vs Offline](#-online-vs-offline)
 10. [Build de produção](#-build-de-produção)
 11. [Troubleshooting](#-troubleshooting)
@@ -199,6 +201,133 @@ Durante uma sessão `flutter run`:
 - `R` — hot restart
 - `o` — alterna platform-overrides
 - `q` — sai
+
+---
+
+## 🔐 Login, contas e moeda
+
+### Login obrigatório
+
+Ao abrir o jogo, você passa pelo **AuthGate**:
+
+- **Primeira vez**: aperte *Criar conta nova* e escolha um nome de
+  usuário único + senha. Receberá um **ID público** `#Nome0000` único
+  para sempre (usado em convites, party, marketplace).
+- **Voltas seguintes**: a sessão fica salva no dispositivo até você
+  fazer **logout manual** ou ficar **30 dias sem abrir** o jogo. Quem
+  joga regularmente nunca precisa logar de novo.
+
+### Como as contas são guardadas
+
+- Senha armazenada como **SHA-256 + salt aleatório de 16 bytes** —
+  ninguém (nem o desenvolvedor) consegue ver sua senha em texto.
+- Cada conta vive no **SQLite local** (modo offline) e/ou sincroniza
+  com o servidor (modo online via Supabase).
+- Username é **case-insensitive** e único globalmente; o `#ID` é
+  garantido único por retry de geração.
+
+### Rotação do aparelho (mobile)
+
+Em vez de **forçar** a tela em paisagem, o jogo agora **pede
+educadamente**: se você abrir o app em retrato, vai aparecer um overlay
+animado "Gire o aparelho". Quando girar, o jogo aparece. PC e Web
+ignoram esse gate.
+
+### 💎 Moeda: Lascas de Éon
+
+A moeda do mundo de Akyron são as **Lascas de Éon** (símbolo: `LE`).
+Você ganha:
+
+- Vencendo combates (XP + LE).
+- Vendendo materiais e drops para NPCs.
+- Vendendo no marketplace pra outros jogadores.
+- Completando quests e dungeons.
+
+Você gasta em **comida, poções, livros de magia, grimórios, casas,
+quartos de hotel** e qualquer coisa no marketplace. Veja a próxima
+seção.
+
+---
+
+## 💰 Economia
+
+A economia foi pensada pra ser tão importante quanto o combate. Tudo
+em LE. Tudo acessível pelo botão **Cidade** na HUD.
+
+### 🏪 Lojas de NPC (`lib/economy/shop_catalog.dart`)
+
+Cada região tem comerciantes diferentes. Você compra **e vende** pra
+eles. A taxa de recompra varia (40–70 % do preço base).
+
+| Região          | Loja                            | Especialidade                  |
+|-----------------|---------------------------------|--------------------------------|
+| Espinho-de-Estrela | Armazém do Velho Eron        | Comida, poções básicas, ervas  |
+| Espinho-de-Estrela | Forja do Punhal Torto        | Materiais e armas iniciais     |
+| Torre dos Magos | Biblioteca de Pergaminhos       | Livros que ensinam magias      |
+| Torre dos Magos | Casa de Frascos da Iyari        | Poções avançadas e raridades   |
+| Floresta Arcana | Pergaminhos da Folha-do-Lago    | Jutsus e pílulas de chakra     |
+| Terras Amaldiçoadas | Caixa da Marca Aberta       | Itens amaldiçoados             |
+| Torre dos Magos | Leilão de Folhas (anônimo)      | **Grimórios** (3F, 4F, 5F)     |
+
+### 🍞 Itens — comida, poções, livros, grimórios (`item_catalog.dart`)
+
+- **Comidas e poções**: Pão de Cevada, Bolinho do Espírito, Ensopado
+  de Corvo, Arroz de Éon, Chá de Mago, Pílula de Chakra, Bala
+  Amaldiçoada, Ração de Viagem, Poção de Cura Menor/Maior, Poção de
+  Mana, Bálsamo Anti-Queimadura, Antídoto, Elixir do Despertar,
+  Tônico do Estudioso (+XP), Tônico do Mercador (+LE).
+- **Materiais**: Erva de Estrela, Prata-Luar, Presa de Devorador,
+  Essência Amaldiçoada, Seda Arcana, **Estilhaço Bruto de Éon**.
+- **Livros**: Tomo da Lança Carmesim, Devorador de Mana, Pergaminho do
+  Mil Pássaros, Sexta Forma — Maré que Sobe, Tratado do Flash Negro,
+  Manuscrito da Lâmina Espectral. Cada livro **ensina uma habilidade**
+  ao ser consumido (exige sistema + level mínimo).
+- **Grimórios**: Chama 3F (épico), Véu 4F (lendário), **Iyari 5F
+  (transcendente — 38 000 LE)**.
+
+### 🏠 Casas e propriedades (`housing_catalog.dart`)
+
+Você pode comprar imóveis em qualquer região. Cada casa tem **baú
+extra**, **fast-travel** (dorme e teleporta de volta) e **features**
+especiais (jardim de ervas, oficina, biblioteca, mesa de runas, altar
+do espírito, portal de Expansão).
+
+| Casa                              | Região              | Preço      |
+|-----------------------------------|---------------------|------------|
+| Cabana de Espinho-de-Estrela      | Vila inicial        | 1.500 LE   |
+| Sítio da Borda da Floresta        | Vila inicial        | 4.200 LE   |
+| Apartamento na Torre              | Velmoria            | 6.800 LE   |
+| Cabana da Floresta Karasuho       | Floresta Arcana     | 3.600 LE   |
+| Quarto no Dojo de Shirogane       | Plano Espiritual    | 5.400 LE   |
+| Casarão do Bairro Antigo          | Velmoria            | 22.000 LE  |
+| Santuário Amaldiçoado             | Terras Amaldiçoadas | 48.000 LE  |
+| **Espiral de Éon** (endgame)      | Masmorra do Rei     | 250.000 LE |
+
+### 🛏️ Hotéis (`housing_catalog.dart`)
+
+Pra quem ainda não tem casa, hotéis curam você e dão buffs temporários:
+
+- **Pousada Cova da Coruja** (espartano: 40 LE / confortável: 120 LE).
+- **Suíte da Torre** (royal: 480 LE — buff Inspirado).
+- **Loft do Dojo de Shirogane** (220 LE — buff Espírito-Próximo).
+- **Cela do Santuário Amaldiçoado** (360 LE — buff Sintonizado com Éon).
+
+### 💱 Marketplace player ↔ player (`marketplace.dart`)
+
+A **Bolsa de Velmoria** é o marketplace global onde qualquer jogador
+posta itens para vender. Taxa fixa de **5 %** vai para a bolsa, o resto
+vai pro vendedor.
+
+Como funciona:
+
+1. Abra **Cidade → Bolsa de Velmoria → POSTAR**.
+2. Escolha um item do seu inventário, quantidade e preço por unidade
+   (o jogo sugere ~20 % acima do preço base do NPC).
+3. A oferta dura **7 dias**. Outros jogadores podem comprar tudo ou
+   parte. Você recebe a LE menos a taxa.
+
+Modo offline: as ofertas ficam só na sua máquina. Quando você se
+conecta a um servidor premium, elas sincronizam pro mercado global.
 
 ---
 
@@ -391,6 +520,56 @@ Cobertura básica de geração de ID, catálogos e sistema de Grimório.
 | Joystick não aparece no mobile                         | O joystick só aparece em Android/iOS. Para forçar no desktop, edite `_isMobile`.         |
 | Erro "Permission denied" salvando no Linux             | Cheque permissões de `~/.local/share/akyron_rpg/`.                                       |
 | Save corrompido                                        | Delete o arquivo do diretório de aplicação — o jogo recria.                              |
+
+---
+
+## 🖥️ Servidor e apps — arquitetura
+
+**Você tem dois caminhos** quando for distribuir:
+
+### Opção A — App único (recomendado)
+
+O mesmo projeto Flutter já compila para tudo:
+
+```bash
+flutter build apk           # Android
+flutter build appbundle     # Play Store
+flutter build ios           # iOS (Mac + Xcode)
+flutter build windows       # .exe
+flutter build linux         # binary
+flutter build macos         # .app
+flutter build web           # site estático
+```
+
+O **app** (Android/iOS) e o **site** (Web) são exatamente o mesmo
+código. Não precisa de pasta separada para o app.
+
+### Opção B — Servidor backend (pasta separada)
+
+Para multiplayer **online de verdade** (marketplace global, boss
+mundial sincronizado, chat público), você precisa subir o servidor
+backend que vive em **`server/`** — projeto **Dart standalone**,
+totalmente desacoplado do app.
+
+```bash
+cd server
+dart pub get
+dart run akyron_server:akyron_server --port 28960 --kind premium
+```
+
+Compile para um único binário (~10 MB, sem dependência do Dart) para
+produção:
+
+```bash
+dart compile exe bin/akyron_server.dart -o akyron_server
+./akyron_server --port 28960
+```
+
+Suporta systemd, Docker e qualquer VPS. Veja **`server/README.md`**
+para deploy completo (systemd unit, Dockerfile pronto).
+
+**Sem o servidor**: tudo funciona offline, marketplace local, save
+em SQLite. Você só perde multiplayer global.
 
 ---
 

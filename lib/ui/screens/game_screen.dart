@@ -16,6 +16,7 @@ import '../../systems/progression/leveling.dart';
 import '../widgets/chapter_intro.dart';
 import '../widgets/level_up_overlay.dart';
 import '../widgets/stat_bar.dart';
+import 'city_hub_screen.dart';
 import 'combat_screen.dart';
 import 'equipment_screen.dart';
 
@@ -140,7 +141,8 @@ class _GameScreenState extends State<GameScreen> {
             ),
           ),
           const Spacer(),
-          Row(
+          Wrap(
+            spacing: 8, runSpacing: 8,
             children: [
               _HudButton(icon: Icons.shield, label: 'Equipar', onTap: () async {
                 await Navigator.of(context).push(MaterialPageRoute(
@@ -148,9 +150,13 @@ class _GameScreenState extends State<GameScreen> {
                 ));
                 setState(() {});
               }),
-              const SizedBox(width: 8),
               _HudButton(icon: Icons.bolt, label: 'Treino', onTap: _startTrainingBattle),
-              const SizedBox(width: 8),
+              _HudButton(icon: Icons.location_city, label: 'Cidade', onTap: () async {
+                await Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => CityHubScreen(character: widget.character),
+                ));
+                setState(() {});
+              }),
               _HudButton(icon: Icons.menu_book, label: 'Códex', onTap: () {
                 Navigator.of(context).pushNamed('/lore');
               }),

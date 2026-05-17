@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../audio/audio_director.dart';
 import '../../audio/track_catalog.dart';
+import '../../auth/session_manager.dart';
 import '../../core/constants.dart';
+import '../../core/currency.dart';
 import '../../core/theme.dart';
 import '../../data/save_repository.dart';
 import '../../models/character.dart';
+import 'auth_gate.dart';
 import 'character_creation.dart';
 import 'game_screen.dart';
 import 'server_browser.dart';
@@ -25,6 +28,7 @@ class _MainMenuState extends State<MainMenu> {
   void initState() {
     super.initState();
     AudioDirector.instance.setMood(MusicMood.mainMenu);
+    SessionManager.instance.heartbeat();
     _load();
   }
 
@@ -37,8 +41,40 @@ class _MainMenuState extends State<MainMenu> {
     }
   }
 
+  Future<void> _logout() async {
+    AudioDirector.instance.sfx(Sfx.uiBack);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sair da conta?'),
+        content: const Text(
+          'Sua sessão será encerrada. Você precisará logar de novo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sair'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await SessionManager.instance.clear();
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const AuthGate()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final acc = SessionManager.instance.currentAccount;
+    final totalLE = _saves.fold<int>(0, (s, c) => s + c.coins);
+
     return Scaffold(
       body: Stack(
         children: [
@@ -58,7 +94,49 @@ class _MainMenuState extends State<MainMenu> {
           SafeArea(
             child: Column(
               children: [
-                const SizedBox(height: 32),
+                // Cabeçalho com info da conta.
+                if (acc != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.account_circle,
+                            size: 32, color: AkyronTheme.cyanSpirit),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                acc.username,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: AkyronTheme.paperBeige,
+                                ),
+                              ),
+                              Text(
+                                acc.playerId.formatted,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AkyronTheme.goldEon,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _LEBadge(amount: totalLE),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          tooltip: 'Sair da conta',
+                          icon: const Icon(Icons.logout),
+                          onPressed: _logout,
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 16),
                 const Text(
                   'AKYRON',
                   style: TextStyle(
@@ -129,6 +207,39 @@ class _MainMenuState extends State<MainMenu> {
   }
 }
 
+/// Badge com a moeda do jogo (Lascas de Éon).
+class _LEBadge extends StatelessWidget {
+  const _LEBadge({required this.amount});
+  final int amount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black54,
+        border: Border.all(color: AkyronTheme.goldEon, width: 1.5),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.diamond, size: 14, color: AkyronTheme.goldEon),
+          const SizedBox(width: 4),
+          Text(
+            Currency.format(amount),
+            style: const TextStyle(
+              color: AkyronTheme.goldEon,
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+              letterSpacing: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _MenuButton extends StatelessWidget {
   const _MenuButton({
     required this.label,
@@ -155,9 +266,8 @@ class _MenuButton extends StatelessWidget {
                 }
               : null,
           style: FilledButton.styleFrom(
-            backgroundColor: enabled
-                ? AkyronTheme.violetArcane
-                : AkyronTheme.deepNight,
+            backgroundColor:
+                enabled ? AkyronTheme.violetArcane : AkyronTheme.deepNight,
             foregroundColor: enabled ? Colors.white : Colors.white38,
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.all(Radius.circular(4)),

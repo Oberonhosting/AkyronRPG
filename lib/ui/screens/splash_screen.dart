@@ -5,7 +5,7 @@ import '../../audio/audio_director.dart';
 import '../../audio/track_catalog.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
-import 'main_menu.dart';
+import 'auth_gate.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -23,7 +23,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (!mounted) return;
       AudioDirector.instance.setMood(MusicMood.mainMenu);
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainMenu()),
+        MaterialPageRoute(builder: (_) => const AuthGate()),
       );
     });
   }

@@ -11,10 +11,12 @@ import 'audio/audio_director.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Em mobile: trava em paisagem (RPG combina mais), em desktop deixa livre.
+  // Em mobile: permite todas as orientações; o RotateDeviceGate vai
+  // pedir (em vez de forçar) que o jogador gire o aparelho.
   try {
     if (Platform.isAndroid || Platform.isIOS) {
-      await SystemChrome.setPreferredOrientations([
+      await SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.portraitUp,
         DeviceOrientation.landscapeLeft,
         DeviceOrientation.landscapeRight,
       ]);

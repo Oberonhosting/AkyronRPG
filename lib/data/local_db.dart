@@ -34,8 +34,22 @@ class LocalDb {
 
   static Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
+      CREATE TABLE accounts (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL,
+        username_lc TEXT NOT NULL UNIQUE,
+        email TEXT,
+        player_id TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        last_login_at INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('''
       CREATE TABLE characters (
         id TEXT PRIMARY KEY,
+        account_id TEXT,
         player_id TEXT,
         name TEXT,
         json TEXT NOT NULL,
@@ -50,9 +64,11 @@ class LocalDb {
     ''');
     await db.execute('''
       CREATE TABLE friends (
-        player_id TEXT PRIMARY KEY,
+        owner_account_id TEXT,
+        player_id TEXT,
         nickname TEXT,
-        last_seen INTEGER
+        last_seen INTEGER,
+        PRIMARY KEY (owner_account_id, player_id)
       )
     ''');
     await db.execute('''
