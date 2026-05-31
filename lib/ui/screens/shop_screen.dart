@@ -9,6 +9,7 @@ import '../../economy/economy_models.dart';
 import '../../economy/item_catalog.dart';
 import '../../economy/shop_catalog.dart';
 import '../../models/character.dart';
+import '../../models/enums.dart';
 
 class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key, required this.character, required this.shop});

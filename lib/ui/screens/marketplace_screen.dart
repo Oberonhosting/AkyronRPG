@@ -8,6 +8,7 @@ import '../../data/catalogs/clothing_catalog.dart';
 import '../../economy/item_catalog.dart';
 import '../../economy/marketplace.dart';
 import '../../models/character.dart';
+import '../../models/enums.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key, required this.character});

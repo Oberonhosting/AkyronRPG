@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Element;
 
 import '../../core/id_generator.dart';
 import '../../core/theme.dart';

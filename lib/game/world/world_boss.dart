@@ -39,7 +39,7 @@ class WorldBossRegistry {
   static final WorldBoss currentWeek = WorldBoss(
     id: 'wb.veiled_devourer',
     name: 'Devorador Velado',
-    maxHp: 5_000_000,
+    maxHp: 5000000,
     lore: 'Nasceu de uma das fendas da Fratura. Cada batida no peito '
         'rachado libera mais um pedaço do Éon original — e mais um Devorador.',
     windowStart: DateTime.now().subtract(const Duration(hours: 1)),
