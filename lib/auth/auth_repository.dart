@@ -2,16 +2,15 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
-import 'package:sqflite/sqflite.dart' show ConflictAlgorithm, Sqflite;
 import 'package:uuid/uuid.dart';
 
 import '../core/id_generator.dart';
-import '../data/local_db.dart';
+import '../data/kv_store.dart';
 import 'auth_models.dart';
 
-/// Repositório de contas. Cada conta vive em SQLite local (tabela
-/// `accounts`). Quando o online (Supabase) for ligado, este repositório
-/// vira a camada local de cache e o `OnlineAuthRepository` substitui.
+/// Repositório de contas — armazenadas em SharedPreferences (web,
+/// mobile e desktop). Cada conta é um Map serializado em um array JSON
+/// sob a chave [_kKey].
 class AuthRepository {
   AuthRepository({Random? rng}) : _rng = rng ?? Random.secure();
 
@@ -20,6 +19,7 @@ class AuthRepository {
   static const int _minPasswordLen = 4;
   static const int _maxUsernameLen = 14;
   static const int _minUsernameLen = 3;
+  static const String _kKey = 'akyron.accounts.v1';
 
   // ───────────────────────── Registro ─────────────────────────
   Future<AuthResult> register({
@@ -30,24 +30,21 @@ class AuthRepository {
     final usernameError = _validateUsername(username);
     if (usernameError != null) return AuthResult.fail(usernameError);
     if (password.length < _minPasswordLen) {
-      return AuthResult.fail('A senha precisa ter ao menos $_minPasswordLen caracteres.');
+      return AuthResult.fail(
+        'A senha precisa ter ao menos $_minPasswordLen caracteres.',
+      );
     }
 
-    final db = await LocalDb.instance();
+    final accounts = await KvStore.instance.readList(_kKey);
 
     // 1) Username livre?
-    final dupe = await db.query(
-      'accounts',
-      where: 'username_lc = ?',
-      whereArgs: [username.toLowerCase()],
-      limit: 1,
-    );
-    if (dupe.isNotEmpty) {
+    final lc = username.trim().toLowerCase();
+    if (accounts.any((a) => a['username_lc'] == lc)) {
       return AuthResult.fail('Este nome de usuário já está em uso.');
     }
 
-    // 2) Gera #ID público único (retry até encontrar livre).
-    final playerId = await _allocateUniquePlayerId(username, db);
+    // 2) Gera #ID público único.
+    final playerId = _allocateUniquePlayerId(username, accounts);
 
     final salt = _randomSaltHex();
     final hash = _hashPassword(password, salt);
@@ -64,12 +61,8 @@ class AuthRepository {
       lastLoginAt: now,
     );
 
-    await db.insert(
-      'accounts',
-      account.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.fail,
-    );
-
+    accounts.add(account.toMap());
+    await KvStore.instance.writeList(_kKey, accounts);
     return AuthResult.ok(account);
   }
 
@@ -78,47 +71,43 @@ class AuthRepository {
     required String usernameOrEmail,
     required String password,
   }) async {
-    final db = await LocalDb.instance();
+    final accounts = await KvStore.instance.readList(_kKey);
     final lc = usernameOrEmail.trim().toLowerCase();
+    final email = usernameOrEmail.trim();
 
-    final rows = await db.query(
-      'accounts',
-      where: 'username_lc = ? OR email = ?',
-      whereArgs: [lc, usernameOrEmail.trim()],
-      limit: 1,
-    );
-    if (rows.isEmpty) {
-      return AuthResult.fail('Conta não encontrada.');
+    Map<String, dynamic>? found;
+    for (final a in accounts) {
+      if (a['username_lc'] == lc || a['email'] == email) {
+        found = a;
+        break;
+      }
     }
-    final acc = Account.fromMap(rows.first);
+    if (found == null) return AuthResult.fail('Conta não encontrada.');
+
+    final acc = Account.fromMap(found);
     final computed = _hashPassword(password, acc.salt);
     if (computed != acc.passwordHash) {
       return AuthResult.fail('Senha incorreta.');
     }
+
     acc.lastLoginAt = DateTime.now();
-    await db.update(
-      'accounts',
-      {'last_login_at': acc.lastLoginAt.millisecondsSinceEpoch},
-      where: 'id = ?',
-      whereArgs: [acc.id],
-    );
+    found['last_login_at'] = acc.lastLoginAt.millisecondsSinceEpoch;
+    await KvStore.instance.writeList(_kKey, accounts);
     return AuthResult.ok(acc);
   }
 
   // ───────────────────────── Helpers ─────────────────────────
   Future<Account?> getById(String accountId) async {
-    final db = await LocalDb.instance();
-    final rows = await db.query('accounts',
-        where: 'id = ?', whereArgs: [accountId], limit: 1);
-    return rows.isEmpty ? null : Account.fromMap(rows.first);
+    final accounts = await KvStore.instance.readList(_kKey);
+    for (final a in accounts) {
+      if (a['id'] == accountId) return Account.fromMap(a);
+    }
+    return null;
   }
 
   Future<int> totalAccounts() async {
-    final db = await LocalDb.instance();
-    final c = Sqflite.firstIntValue(
-      await db.rawQuery('SELECT COUNT(*) FROM accounts'),
-    );
-    return c ?? 0;
+    final accounts = await KvStore.instance.readList(_kKey);
+    return accounts.length;
   }
 
   String? _validateUsername(String username) {
@@ -132,19 +121,16 @@ class AuthRepository {
     return null;
   }
 
-  Future<PlayerId> _allocateUniquePlayerId(String username, db) async {
-    for (var i = 0; i < 50; i++) {
+  PlayerId _allocateUniquePlayerId(
+    String username,
+    List<Map<String, dynamic>> accounts,
+  ) {
+    final taken = accounts.map((a) => a['player_id'] as String).toSet();
+    for (var i = 0; i < 200; i++) {
       final candidate = PlayerId.fromName(username, rng: _rng);
-      final dupe = await db.query(
-        'accounts',
-        where: 'player_id = ?',
-        whereArgs: [candidate.formatted],
-        limit: 1,
-      );
-      if (dupe.isEmpty) return candidate;
+      if (!taken.contains(candidate.formatted)) return candidate;
     }
-    // Fallback extremamente improvável.
-    throw StateError('Não foi possível alocar um #ID único após 50 tentativas.');
+    throw StateError('Não foi possível alocar um #ID único.');
   }
 
   String _randomSaltHex() {
@@ -166,4 +152,3 @@ class AuthRepository {
           int.parse(hex.substring(i, i + 2), radix: 16),
       ];
 }
-
